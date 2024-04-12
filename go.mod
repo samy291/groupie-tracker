@@ -1,4 +1,4 @@
-module groupie
+module groupie-tracker
 
 go 1.19
 

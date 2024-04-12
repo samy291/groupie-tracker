@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groupie - Sign</title>
+    <link rel="stylesheet" href="/static/css/signup.css">
+</head>
+<body>
+    <div class="header-band">
+        <h2>Welcome !</h2>
+    </div>
+    <img src="/static/img/future.jpg" alt="My image" class="login2-image">
+    <login-body>
+        <div class="container">
+            <h1 class="title">Sign</h1>
+            <form action="/signup" method="post">
+                <div class="form-group">
+                    <label for="email">Adresse e-mail :</label>
+                    <input type="email" name="email" id="email" required><br>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Mot de passe :</label>
+                    <input type="password" name="password" id="password" required><br>
+                </div>
+
+                <button type="submit" class="btn">Se connecter</button>
+            </form>
+        </div>
+    </login-body>
+</body>
+</html>
