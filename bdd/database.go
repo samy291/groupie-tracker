@@ -1,51 +1,70 @@
-package controller
+package bdd
 
 import (
-    "database/sql"
-    "fmt"
-    _ "github.com/mattn/go-sqlite3"
-	//il faut obtenir sqlite avec: go get -u github.com/mattn/go-sqlite3
+	"database/sql"
+	"log"
 )
 
-func TestDatabase() {
-    // Connexion à la base de données
-    db, err := sql.Open("sqlite3", "./bdd/groupie_tracker.db")
-    if err != nil {
-        fmt.Println("Erreur lors de la connexion à la base de données:", err)
-        return
-    }
-    defer db.Close()
+func InitDB() *sql.DB {
+	db, err := sql.Open("sqlite3", "./groupie-tracker.db")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Tester la connexion
-    err = db.Ping()
-    if err != nil {
-        fmt.Println("Erreur lors du test de connexion à la base de données:", err)
-        return
-    }
-    fmt.Println("Connexion à la base de données réussie")
+	createTableQuery1 := `
+	CREATE TABLE IF NOT EXISTS USER (
+		id INTEGER PRIMARY KEY,
+		pseudo TEXT NOT NULL,
+		email TEXT NOT NULL,
+		password TEXT NOT NULL
+	);
+	`
+	_, err = db.Exec(createTableQuery1)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Exécuter une requête de test
-    rows, err := db.Query("SELECT * FROM USER")
-    if err != nil {
-        fmt.Println("Erreur lors de l'exécution de la requête:", err)
-        return
-    }
-    defer rows.Close()
+	createTableQuery2 := `
+	CREATE TABLE IF NOT EXISTS ROOMS (
+		id INTEGER PRIMARY KEY,
+		created_by INTEGER NOT NULL,
+		max_player INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		id_game INTEGER,
+		FOREIGN KEY (created_by) REFERENCES USER(id),
+		FOREIGN KEY (id_game) REFERENCES GAMES(id)
+	);
+	`
+	_, err = db.Exec(createTableQuery2)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Parcourir les résultats de la requête
-    fmt.Println("Utilisateurs:")
-    for rows.Next() {
-        var id int
-        var pseudo, email, password string
-        err = rows.Scan(&id, &pseudo, &email, &password)
-        if err != nil {
-            fmt.Println("Erreur lors de la lecture des données:", err)
-            return
-        }
-        fmt.Printf("ID: %d, Pseudo: %s, Email: %s, Mot de passe: %s\n", id, pseudo, email, password)
-    }
-    if err = rows.Err(); err != nil {
-        fmt.Println("Erreur lors de l'itération sur les résultats:", err)
-        return
-    }
+	createTableQuery3 := `
+	CREATE TABLE IF NOT EXISTS ROOM_USERS (
+		id_room INTEGER,
+		id_user INTEGER,
+		score INTEGER,
+		FOREIGN KEY (id_room) REFERENCES ROOMS(id),
+		FOREIGN KEY (id_user) REFERENCES USER(id),
+		PRIMARY KEY (id_room, id_user)
+	);
+	`
+	_, err = db.Exec(createTableQuery3)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	createTableQuery4 := `
+	CREATE TABLE IF NOT EXISTS GAMES (
+		id INTEGER PRIMARY KEY,
+		name TEXT NOT NULL
+	);
+	`
+	_, err = db.Exec(createTableQuery4)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return db
 }

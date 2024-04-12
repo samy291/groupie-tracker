@@ -7,6 +7,7 @@ import (
     "database/sql"
     "errors"
     "net/http"
+    "../controller"
 
     database "groupie-tracker/bdd"
 )
@@ -166,4 +167,5 @@ func main() {
     if err != nil {
         log.Fatalf("Error starting server: %v", err)
     }
+    controller.TestDatabase()
 }
