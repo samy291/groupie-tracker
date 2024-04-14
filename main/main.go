@@ -7,10 +7,13 @@ import (
     "database/sql"
     "errors"
     "net/http"
-    "../controller"
 
     database "groupie-tracker/bdd"
 )
+
+// import (
+//     "../controller"
+// )
 
 func Home(w http.ResponseWriter, r *http.Request) {
     t, err := template.ParseFiles("./templates/accueil.html")
@@ -167,5 +170,5 @@ func main() {
     if err != nil {
         log.Fatalf("Error starting server: %v", err)
     }
-    controller.TestDatabase()
+    //controller.TestDatabase()
 }
