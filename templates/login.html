@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
+<script src="/static/js/main.js"></script>
 <body>
     <div class="header-band">
         <h2>Welcome back !</h2>
@@ -23,7 +25,10 @@
 
                 <div class="form-group">
                     <label for="password">Mot de passe :</label>
-                    <input type="password" name="password" id="password" required><br>
+                    <div class="input-button-container">
+                        <input type="password" name="password" id="password" required>
+                        <button type="button" onclick="togglePasswordVisibility('password')">👁️</button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn">Connect</button>

@@ -52,6 +52,12 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	pseudo := r.FormValue("pseudo")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
+	confirmPassword := r.FormValue("confirm_password")
+
+	if password != confirmPassword {
+		http.Error(w, "Passwords do not match", http.StatusBadRequest)
+		return
+	}
 
 	db, err := sql.Open("sqlite3", "./groupie-tracker.db")
 	if err != nil {
