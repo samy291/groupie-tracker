@@ -7,6 +7,7 @@ import (
     "database/sql"
     "errors"
     "net/http"
+	_ "github.com/mattn/go-sqlite3"
 
     database "groupie-tracker/bdd"
 )
@@ -45,7 +46,7 @@ func loghandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
+func Signup(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
         http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
         return
@@ -57,23 +58,32 @@ func Login(w http.ResponseWriter, r *http.Request) {
     db := database.InitDB()
     defer db.Close()
 
-    isAuthorized, err := checkCredentials(db, email, password)
+    // Vérifiez si l'utilisateur existe déjà
+    var id int
+    row := db.QueryRow("SELECT id FROM USER WHERE email = ?", email)
+    err := row.Scan(&id)
+    if err != sql.ErrNoRows {
+        if err != nil {
+            http.Error(w, "Internal server error", http.StatusInternalServerError)
+            return
+        }
+        fmt.Fprintf(w, "User already exists.")
+        return
+    }
+
+    // Insérez l'utilisateur dans la base de données
+    _, err = db.Exec("INSERT INTO USER (email, password) VALUES (?, ?)", email, password)
     if err != nil {
         http.Error(w, "Internal server error", http.StatusInternalServerError)
         return
     }
 
-    if isAuthorized {
-        fmt.Fprintf(w, "Welcome, %s! You are now logged in.", email)
-    } else {
-        err := registerUser(db, email, password)
-        if err != nil {
-            http.Error(w, "Failed to register user", http.StatusInternalServerError)
-            return
-        }
-        fmt.Fprintf(w, "Registration successful. Please log in again.")
-    }
+    // Affichez les informations de l'utilisateur dans la console
+    fmt.Println("Email:", email, "Password:", password)
+
+    fmt.Fprintf(w, "Registration successful. Please log in again.")
 }
+
 
 
 func checkCredentials(db *sql.DB, email, password string) (bool, error) {
@@ -117,26 +127,31 @@ func registerUser(db *sql.DB, email, password string) error {
     return nil
 }
 
-func signup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
+func login(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
 
-	email := r.FormValue("email")
-	password := r.FormValue("password")
+    email := r.FormValue("email")
+    password := r.FormValue("password")
 
-	db := database.InitDB()
-	defer db.Close()
+    db := database.InitDB()
+    defer db.Close()
 
-	err := registerUser(db, email, password)
-	if err != nil {
-		http.Error(w, "Failed to register user", http.StatusInternalServerError)
-		return
-	}
+    isAuthorized, err := checkCredentials(db, email, password)
+    if err != nil {
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
 
-	fmt.Fprintf(w, "Registration successful. Please log in.")
+    if isAuthorized {
+        http.Redirect(w, r, "/test", http.StatusSeeOther)
+    } else {
+        fmt.Fprintf(w, "Invalid email or password.")
+    }
 }
+
 
 
 func sign(w http.ResponseWriter, r *http.Request) {
@@ -154,13 +169,54 @@ func sign(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+func printUsers(db *sql.DB) {
+    rows, err := db.Query("SELECT email, password FROM USER")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var email, password string
+        err := rows.Scan(&email, &password)
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Println("Email:", email, "Password:", password)
+    }
+
+    if err = rows.Err(); err != nil {
+        log.Fatal(err)
+    }
+}
+
+func selectgame(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("./templates/selectgame.html")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, nil)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+
+}
 
 func main() {
+	db := database.InitDB()
+    defer db.Close()
+
+    printUsers(db)
     http.HandleFunc("/", Home)
 	http.HandleFunc("/loghandler", loghandler)
-	http.HandleFunc("/signup", signup)
 	http.HandleFunc("/sign", sign)
-    http.HandleFunc("/login", Login)
+	http.HandleFunc("/test", selectgame)
+	http.HandleFunc("/signup", Signup)
+
 
     fs := http.FileServer(http.Dir("static"))
     http.Handle("/static/", http.StripPrefix("/static/", fs))
