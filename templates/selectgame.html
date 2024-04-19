@@ -5,15 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Groupie Tracker</title>
     <link rel="stylesheet" href="/static/css/selectgame.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div class="header-band">
         <h2>Groupie Tracker</h2>
+        <div class="dropdown" onclick="toggleDropdown()">
+            <img src="static/img/profile.png" alt="Profile" class="profile-img">
+            <div class="dropdown-content" id="dropdownContent">
+                <a href="#">Scorboard</a>
+                <a href="#">Room</a>
+                <a href="#">Friends</a>
+                <a href="#">Disconnect</a>
+            </div>
+        </div>
     </div>
     <div class="button-container">
         <a href="/" class="button">BLIND TEST</a>
         <a href="/" class="button">DEAF TEST</a>
         <a href="/" class="button">PETIT BAC</a>
     </div>
+    <script src="main.js"></script>
 </body>
 </html>
