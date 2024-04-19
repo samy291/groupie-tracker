@@ -134,10 +134,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isAuthorized {
-		fmt.Fprintf(w, "Login successful.")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.ServeFile(w, r, "templates/selectgame.html")
+
 	} else {
-		http.Redirect(w, r, "/sign", http.StatusSeeOther)
+		// http.Redirect(w, r, "/loghandler", http.StatusSeeOther)
+		http.ServeFile(w, r, "templates/login.html")
 		fmt.Fprintf(w, "Invalid email or password.")
 	}
 }
