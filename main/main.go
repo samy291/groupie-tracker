@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -195,6 +197,73 @@ func selectgame(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func profile(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("./templates/profile.html")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, nil)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+func createroom(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("./templates/createroom.html")
+	if err != nil {
+		fmt.Printf("Error parsing template: %v\n", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, nil)
+	if err != nil {
+		fmt.Printf("Error executing template: %v\n", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+func create(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	code, err := generateCode()
+	if err != nil {
+		http.Error(w, "Failed to generate code", http.StatusInternalServerError)
+		return
+	}
+
+	db, err := sql.Open("sqlite3", "./groupie-tracker.db")
+	if err != nil {
+		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	_, err = db.Exec("INSERT INTO ROOM (password) VALUES (?)", code)
+	if err != nil {
+		http.Error(w, "Failed to insert room into database", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/createroom", http.StatusSeeOther)
+}
+
+func generateCode() (string, error) {
+	bytes := make([]byte, 4)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
 func main() {
 	db := database.InitDB()
 	defer db.Close()
@@ -206,6 +275,9 @@ func main() {
 	http.HandleFunc("/test", selectgame)
 	http.HandleFunc("/signup", Signup)
 	http.HandleFunc("/login", login)
+	http.HandleFunc("/profile", profile)
+	http.HandleFunc("/createroom", createroom)
+	http.HandleFunc("/create", create)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

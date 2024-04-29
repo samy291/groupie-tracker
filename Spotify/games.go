@@ -3,17 +3,23 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 var (
-	ClientID     = "0d37976efb0445168156a2f992f84af6"
-	ClientSecret = "5d2b98f826824e39a7e25c2acdd6eb9f"
+	ClientID           = "0d37976efb0445168156a2f992f84af6"
+	ClientSecret       = "5d2b98f826824e39a7e25c2acdd6eb9f"
+	ClientIDGenius     = "10rg6i4uaUtqnTueftf6fMA-NR2GM89eJ2FyFWv-h1Z-7-irfka9rtscEkxfD3mI"
+	ClientSecretGenius = "Ohw2qk9Q3ydzxigftO_HQ5pktONaw2NdJplYTW6bsAbTsMRevuYe3h1VHASaUENidVzRoqoDkmhD43hkz55G4Q"
+	ClientIDAccess     = "0usQQiAb3EUV0A3cogy-FzgcgX5NcU04lw8gFGgL-AkJd_VemfO9e9fMYjrzlvFA"
 )
 
 func main() {
@@ -34,6 +40,13 @@ func main() {
 	}
 
 	fmt.Println("Chanson aléatoire de la playlist récupérée :", randomSong)
+
+	// Récupérer les paroles de la chanson aléatoire
+	err = getLyrics(randomSong, ClientIDAccess)
+	if err != nil {
+		fmt.Println("Erreur lors de la récupération des paroles de la chanson:", err)
+		return
+	}
 }
 
 func generateAccessToken() (string, error) {
@@ -112,7 +125,10 @@ func getAllSongsFromPlaylist(accessToken, playlistID string) ([]string, error) {
 	var data struct {
 		Items []struct {
 			Track struct {
-				Name string `json:"name"`
+				Name    string `json:"name"`
+				Artists []struct {
+					Name string `json:"name"`
+				} `json:"artists"`
 			} `json:"track"`
 		} `json:"items"`
 	}
@@ -121,11 +137,138 @@ func getAllSongsFromPlaylist(accessToken, playlistID string) ([]string, error) {
 		return nil, err
 	}
 
-	// Extraire le nom de chaque chanson de la playlist
+	// Extraire le nom de chaque chanson et l'artiste de la playlist
 	var songs []string
 	for _, item := range data.Items {
-		songs = append(songs, item.Track.Name)
+		if len(item.Track.Artists) > 0 {
+			songs = append(songs, fmt.Sprintf("Song: %s, Artist: %s", item.Track.Name, item.Track.Artists[0].Name))
+		} else {
+			songs = append(songs, fmt.Sprintf("Song: %s, Artist: Unknown", item.Track.Name))
+		}
 	}
 
 	return songs, nil
+}
+
+func checkLyricsAvailability(song, artist string, accessToken string) (bool, error) {
+	// Créer une requête GET à l'API Genius pour rechercher les paroles de la chanson
+	apiUrl := fmt.Sprintf("https://api.genius.com/search?q=%s %s", url.QueryEscape(song), url.QueryEscape(artist))
+
+	// Créer un client HTTP
+	client := &http.Client{}
+
+	// Créer une requête GET
+	req, err := http.NewRequest("GET", apiUrl, nil)
+	if err != nil {
+		return false, err
+	}
+
+	// Ajouter l'en-tête d'autorisation avec le jeton d'accès pour Genius
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// Envoyer la requête et obtenir une réponse
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	// Décoder la réponse JSON
+	var data map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return false, err
+	}
+
+	// Extraire l'objet "response" du JSON
+	response, ok := data["response"].(map[string]interface{})
+	if !ok {
+		return false, errors.New("unexpected response format from Genius API")
+	}
+
+	// Extraire le tableau "hits" de la réponse
+	hits, ok := response["hits"].([]interface{})
+	if !ok || len(hits) == 0 {
+		return false, nil // Les paroles ne sont pas disponibles
+	}
+
+	// Les paroles sont disponibles
+	return true, nil
+}
+
+func getLyrics(song string, accessToken string) error {
+	// Créer une requête GET à l'API Genius pour rechercher les paroles de la chanson
+	apiURL := fmt.Sprintf("https://api.genius.com/search?q=%s", url.QueryEscape(song))
+
+	// Créer un client HTTP
+	client := &http.Client{}
+
+	// Créer une requête GET
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return err
+	}
+
+	// Ajouter l'en-tête d'autorisation avec le jeton d'accès pour Genius
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// Envoyer la requête et obtenir une réponse
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Décoder la réponse JSON
+	var data map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return err
+	}
+
+	// Extraire l'objet "response" du JSON
+	response, ok := data["response"].(map[string]interface{})
+	if !ok {
+		return errors.New("unexpected response format from Genius API")
+	}
+
+	// Extraire le tableau "hits" de la réponse
+	hits, ok := response["hits"].([]interface{})
+	if !ok || len(hits) == 0 {
+		return errors.New("no lyrics found for the song")
+	}
+
+	// Extraire le premier hit
+	hit := hits[0].(map[string]interface{})
+
+	// Extraire l'objet "result" du hit
+	result, ok := hit["result"].(map[string]interface{})
+	if !ok {
+		return errors.New("unexpected response format from Genius API")
+	}
+
+	// Extraire l'URL de la page des paroles
+	lyricsURL, ok := result["url"].(string)
+	if !ok {
+		return errors.New("unexpected response format from Genius API")
+	}
+
+	// Effectuer une requête GET pour récupérer la page des paroles
+	resp, err = client.Get(lyricsURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Analyser la page des paroles
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// Extraire les paroles de la page
+	lyrics := doc.Find(".lyrics").Text()
+
+	// Imprimer les paroles
+	fmt.Println("Paroles de la chanson:", lyrics)
+
+	return nil
 }
