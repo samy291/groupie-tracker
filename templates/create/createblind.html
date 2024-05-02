@@ -11,11 +11,17 @@
     <div class="header-band">
         <h2 class="title">Groupie Tracker</h2>
     </div>
-    <div class="button-container">
-        <a href="/createblind" class="button">BLIND TEST</a>
-        <a href="/createblind" class="button">DEAF TEST</a>
-        <a href="/createblind" class="button">PETIT BAC</a>
-    </div>
+
+    <form method="POST" action="/addroom">
+        <label for="name">Room Name:</label><br>
+        <input type="text" id="name" name="name"><br>
+    
+        
+        <label for="maxPlayer">Max Player:</label><br>
+<input type="text" id="max_Player" name="max_player"><br>
+        <input type="submit" value="Submit">
+    </form>
+  
     <script src="main.js"></script>
 </body>
 </html>

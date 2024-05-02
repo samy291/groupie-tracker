@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.1 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/golang/protobuf v1.2.0 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/zmb3/spotify v1.3.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
