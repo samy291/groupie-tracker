@@ -1,18 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Groupie Tracker</title>
-    <link rel="stylesheet" href="/static/room.css">
-</head>
 <body>
+    <style>
+        .room {
+            background-color: #929090;
+            margin: 30px;
+            padding: 30px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .room h3 {
+            font-size: 1.9em;
+            font-weight: bold;
+            text-align: left;
+        }
+        .room p {
+            text-align: left;
+        }
+        .room button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            padding: 10px 24px;
+            border-radius: 5px;
+        }
+    </style>
     <div class="header-band">
         <h2>Room</h2>
     </div>
-    
+    {{range .}}
+    <div class="room">
+        <div>
+            <h3>{{.Name}}</h3>
+            <p>Created by: {{.CreatedBy}}</p>
+            <p>Max players: {{.MaxPlayer}}</p>
+        </div>
+        <button type="button">Join</button>
     </div>
-
+    {{end}}
     <script src="/static/js/chat.js"></script>
 </body>
-</html>

@@ -11,8 +11,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	database "groupie-tracker/bdd"
-	groupieWebsocket "groupie-tracker/groupieWebsocket"
 )
+
+type Room struct {
+	ID        int
+	CreatedBy string
+	MaxPlayer string
+	Name      string
+	GameID    sql.NullInt64
+}
 
 func Home(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/accueil.html")
@@ -178,22 +185,29 @@ func sign(w http.ResponseWriter, r *http.Request) {
 func printRooms(db *sql.DB) error {
 	rows, err := db.Query("SELECT * FROM ROOMS")
 	if err != nil {
+		log.Printf("Error executing query: %v", err)
 		return err
 	}
 	defer rows.Close()
 
-	var id, created_by, max_player, id_game int
-	var name, code string
-	fmt.Println("ID | Created By | Max Players | Name | Game ID | Code")
+	var id int
+	var name, created_by, max_player string
+	var id_game sql.NullInt64
+	fmt.Println("ID | Created By | Max Players | Name | Game ID")
 	for rows.Next() {
-		err = rows.Scan(&id, &created_by, &max_player, &name, &id_game, &code)
+		err = rows.Scan(&id, &created_by, &max_player, &name, &id_game)
 		if err != nil {
+			log.Printf("Error scanning row: %v", err)
 			return err
 		}
-		fmt.Printf("%d | %d | %d | %s | %d | %s\n", id, created_by, max_player, name, id_game, code)
+		if id_game.Valid {
+			fmt.Printf("%d | %s | %s | %s | %d\n", id, created_by, max_player, name, id_game.Int64)
+		} else {
+			fmt.Printf("%d | %s | %s | %s | %s\n", id, created_by, max_player, name, "NULL")
+		}
 	}
-
 	if err = rows.Err(); err != nil {
+		log.Printf("Error with rows: %v", err)
 		return err
 	}
 
@@ -282,6 +296,32 @@ func create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getRooms(db *sql.DB) ([]Room, error) {
+	rows, err := db.Query("SELECT * FROM ROOMS")
+	if err != nil {
+		log.Printf("Error executing query: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rooms []Room
+	for rows.Next() {
+		var room Room
+		err = rows.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.GameID)
+		if err != nil {
+			log.Printf("Error scanning row: %v", err)
+			return nil, err
+		}
+		rooms = append(rooms, room)
+	}
+	if err = rows.Err(); err != nil {
+		log.Printf("Error with rows: %v", err)
+		return nil, err
+	}
+
+	return rooms, nil
+}
+
 func join(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/room.html")
 	if err != nil {
@@ -290,7 +330,16 @@ func join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = t.Execute(w, nil)
+	db := database.InitDB()
+	defer db.Close()
+
+	rooms, err := getRooms(db)
+	if err != nil {
+		http.Error(w, "Failed to get rooms", http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, rooms)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -333,8 +382,28 @@ func main() {
 		createblind(db, w, r)
 	})
 	http.HandleFunc("/addroom", AddRoom)
+	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		conn, _ := upgrader.Upgrade(w, r, nil)
 
-	http.HandleFunc("/websocket", groupieWebsocket.WebsocketHandler)
+		clients = append(clients, conn)
+
+		for {
+			msgType, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			fmt.Printf("%s send: %s\n", conn.RemoteAddr(), string(msg))
+			for _, client := range clients {
+				if err := client.WriteMessage(msgType, msg); err != nil {
+					return
+				}
+			}
+		}
+	})
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
