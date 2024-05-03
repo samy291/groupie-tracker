@@ -120,24 +120,25 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/loghandler", http.StatusSeeOther)
 }
 
-func checkCredentials(db *sql.DB, email, password string) (bool, error) {
+func checkCredentials(db *sql.DB, email, password string) (bool, string, error) {
 	var id int
+	var pseudo string
 	var storedPassword string
 
-	row := db.QueryRow("SELECT id, password FROM USER WHERE email = ?", email)
-	err := row.Scan(&id, &storedPassword)
+	row := db.QueryRow("SELECT id, pseudo, password FROM USER WHERE email = ?", email)
+	err := row.Scan(&id, &pseudo, &storedPassword)
 
 	if err == sql.ErrNoRows {
-		return false, nil
+		return false, "", nil
 	} else if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	if password == storedPassword {
-		return true, nil
+		return true, pseudo, nil
 	}
 
-	return false, nil
+	return false, "", nil
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -152,17 +153,22 @@ func login(w http.ResponseWriter, r *http.Request) {
 	db := database.InitDB()
 	defer db.Close()
 
-	isAuthorized, err := checkCredentials(db, email, password)
+	isAuthorized, username, err := checkCredentials(db, email, password)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	if isAuthorized {
+		http.SetCookie(w, &http.Cookie{
+			Name:   "pseudo",
+			Value:  username,
+			Path:   "/",
+			MaxAge: 3600, // Expire après 1 heure
+		})
 		http.ServeFile(w, r, "templates/selectgame.html")
 
 	} else {
-		// http.Redirect(w, r, "/loghandler", http.StatusSeeOther)
 		http.ServeFile(w, r, "templates/login.html")
 		fmt.Fprintf(w, "Invalid email or password.")
 	}
