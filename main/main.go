@@ -11,6 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	database "groupie-tracker/bdd"
+	"groupie-tracker/groupieWebsocket"
 )
 
 type Room struct {
@@ -382,28 +383,8 @@ func main() {
 		createblind(db, w, r)
 	})
 	http.HandleFunc("/addroom", AddRoom)
-	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
-		conn, _ := upgrader.Upgrade(w, r, nil)
-
-		clients = append(clients, conn)
-
-		for {
-			msgType, msg, err := conn.ReadMessage()
-			if err != nil {
-				return
-			}
-
-			fmt.Printf("%s send: %s\n", conn.RemoteAddr(), string(msg))
-			for _, client := range clients {
-				if err := client.WriteMessage(msgType, msg); err != nil {
-					return
-				}
-			}
-		}
-	})
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
+	http.HandleFunc("/echo", groupieWebsocket.Websocket)
+	http.HandleFunc("/room", groupieWebsocket.Websocketpage)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

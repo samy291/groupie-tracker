@@ -16,29 +16,26 @@ var (
 	clients = make([]*websocket.Conn, 0)
 )
 
-func main() {
-	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
-		conn, _ := upgrader.Upgrade(w, r, nil)
+func Websocket(w http.ResponseWriter, r *http.Request) {
+	conn, _ := upgrader.Upgrade(w, r, nil)
 
-		clients = append(clients, conn)
+	clients = append(clients, conn)
 
-		for {
-			msgType, msg, err := conn.ReadMessage()
-			if err != nil {
+	for {
+		msgType, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("%s send: %s\n", conn.RemoteAddr(), string(msg))
+		for _, client := range clients {
+			if err := client.WriteMessage(msgType, msg); err != nil {
 				return
 			}
-
-			fmt.Printf("%s send: %s\n", conn.RemoteAddr(), string(msg))
-			for _, client := range clients {
-				if err := client.WriteMessage(msgType, msg); err != nil {
-					return
-				}
-			}
 		}
-	})
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
-	http.ListenAndServe(":8080", nil)
-	fmt.Println("Server started")
+	}
+}
+
+func Websocketpage(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "templates/room.html")
 }

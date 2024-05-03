@@ -1,5 +1,16 @@
+<html>
 <body>
     <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .chat {
+            width: 50%;
+        }
+        .rooms {
+            width: 50%;
+        }
         .room {
             background-color: #929090;
             margin: 30px;
@@ -30,19 +41,66 @@
             padding: 10px 24px;
             border-radius: 5px;
         }
+        .new-class{
+            background-color: green;
+            padding: 10px;
+            color: white;
+            font-size: 20px;
+            text-align: center;
+        }
+        .content{
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+        }
     </style>
-    <div class="header-band">
-        <h2>Room</h2>
-    </div>
-    {{range .}}
-    <div class="room">
-        <div>
-            <h3>{{.Name}}</h3>
-            <p>Created by: {{.CreatedBy}}</p>
-            <p>Max players: {{.MaxPlayer}}</p>
+    <div class="container">
+        <div class="chat">
+            <div class="header-band">
+                <h2>Chat</h2>
+            </div>
+            <div class="content">
+                <input type="text" id="input">
+                <button onclick="send()">send message</button>
+            </div>
+            <pre id="output"></pre>
         </div>
-        <button type="button">Join</button>
+        <div class="rooms">
+            <div class="header-band">
+                <h2>Room</h2>
+            </div>
+            {{range .}}
+            <div class="room">
+                <div>
+                    <h3>{{.Name}}</h3>
+                    <p>Created by: {{.CreatedBy}}</p>
+                    <p>Max players: {{.MaxPlayer}}</p>
+                </div>
+                <button type="button">Join</button>
+            </div>
+            {{end}}
+        </div>
     </div>
-    {{end}}
     <script src="/static/js/chat.js"></script>
+    <script>
+        var input = document.getElementById('input')
+        var output = document.getElementById('output')
+        var socket = new WebSocket("ws://localhost:8080/echo")
+
+        output.classList.add("new-class")
+
+        socket.onopen = function(){
+            output.innerHTML += "Status: Connected\n";  
+        }
+
+        socket.onmessage = function(e){
+            output.innerHTML += "Mesaage: " + e.data + "\n";  
+        }
+
+        function send(){
+            socket.send(input.value);
+            input.value = "";
+        }
+    </script>
 </body>
+</html>
