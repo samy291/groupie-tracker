@@ -53,11 +53,13 @@
             flex-direction: row;
             justify-content: center;
         }
+
+
     </style>
     <div class="container">
         <div class="chat">
             <div class="header-band">
-                <h2>Chat</h2>
+                <h2 class="chat-title">Chat</h2>
             </div>
             <div class="content">
                 <input type="text" id="input">
@@ -70,15 +72,15 @@
                 <h2>Room</h2>
             </div>
             {{range .}}
-            <div class="room">
-                <div>
-                    <h3>{{.Name}}</h3>
-                    <p>Created by: {{.CreatedBy}}</p>
-                    <p>Max players: {{.MaxPlayer}}</p>
-                </div>
-                <button type="button">Join</button>
-            </div>
-            {{end}}
+<div class="room" data-created-by="{{.CreatedBy}}">
+    <div>
+        <h3>{{.Name}}</h3>
+        <p>Created by: {{.CreatedBy}}</p>
+        <p>Max players: {{.MaxPlayer}}</p>
+    </div>
+    <a href="/join-room?id={{.ID}}"><button type="button">Join</button></a>
+</div>
+{{end}}
         </div>
     </div>
     <script src="/static/js/chat.js"></script>

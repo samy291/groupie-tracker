@@ -3,15 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
-
+	database "groupie-tracker/bdd"
+	"groupie-tracker/groupieWebsocket"
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
-
-	database "groupie-tracker/bdd"
-	"groupie-tracker/groupieWebsocket"
 )
 
 type Room struct {
@@ -29,14 +28,12 @@ func Home(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func loghandler(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/login.html")
 	if err != nil {
@@ -44,66 +41,63 @@ func loghandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		log.Printf("Error executing template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func AddRoom(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
 	name := r.FormValue("name")
-	createdBy := "default"
-	maxPlayer := r.FormValue("max_player")
 
+	// Get the pseudo from the cookie
+	pseudo, err := r.Cookie("pseudo")
+	if err != nil {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	createdBy := pseudo.Value
+
+	maxPlayer := r.FormValue("max_player")
 	db, err := sql.Open("sqlite3", "./groupie-tracker.db")
 	if err != nil {
 		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
 		return
 	}
 	defer db.Close()
-
 	result, err := db.Exec("INSERT INTO ROOMS (name, created_by, max_player) VALUES (?, ?, ?)", name, createdBy, maxPlayer)
 	if err != nil {
 		http.Error(w, "Failed to insert room into database", http.StatusInternalServerError)
 		return
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		http.Error(w, "Failed to retrieve the result of the database operation", http.StatusInternalServerError)
 		return
 	}
-
 	if rowsAffected == 0 {
 		fmt.Println("No room was added to the database.")
 	} else {
 		fmt.Println("A room was successfully added to the database.")
 	}
 }
-
 func Signup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
 	pseudo := r.FormValue("pseudo")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-
 	if password != confirmPassword {
 		http.Error(w, "Passwords do not match", http.StatusBadRequest)
 		return
 	}
-
 	db, err := sql.Open("sqlite3", "./groupie-tracker.db")
 	if err != nil {
 		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
@@ -111,69 +105,68 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
+	// Check if the username or email already exists
+	var exists int
+	err = db.QueryRow("SELECT count(*) FROM USER WHERE pseudo = ? OR email = ?", pseudo, email).Scan(&exists)
+	if err != nil {
+		http.Error(w, "Failed to verify uniqueness of user", http.StatusInternalServerError)
+		return
+	}
+	if exists != 0 {
+		http.Error(w, "Username or email already exists", http.StatusBadRequest)
+		return
+	}
+
 	_, err = db.Exec("INSERT INTO USER (pseudo, email, password) VALUES (?, ?, ?)", pseudo, email, password)
 	if err != nil {
 		http.Error(w, "Failed to insert user into database", http.StatusInternalServerError)
 		return
 	}
-
 	http.Redirect(w, r, "/loghandler", http.StatusSeeOther)
 }
-
 func checkCredentials(db *sql.DB, email, password string) (bool, string, error) {
 	var id int
 	var pseudo string
 	var storedPassword string
-
 	row := db.QueryRow("SELECT id, pseudo, password FROM USER WHERE email = ?", email)
 	err := row.Scan(&id, &pseudo, &storedPassword)
-
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	} else if err != nil {
 		return false, "", err
 	}
-
 	if password == storedPassword {
 		return true, pseudo, nil
 	}
-
 	return false, "", nil
 }
-
 func login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-
 	db := database.InitDB()
 	defer db.Close()
-
 	isAuthorized, username, err := checkCredentials(db, email, password)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	if isAuthorized {
 		http.SetCookie(w, &http.Cookie{
 			Name:   "pseudo",
 			Value:  username,
 			Path:   "/",
-			MaxAge: 3600, // Expire après 1 heure
+			MaxAge: 36000, // Expire après 1 heure
 		})
 		http.ServeFile(w, r, "templates/selectgame.html")
-
 	} else {
 		http.ServeFile(w, r, "templates/login.html")
 		fmt.Fprintf(w, "Invalid email or password.")
 	}
 }
-
 func sign(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/sign.html")
 	if err != nil {
@@ -181,14 +174,12 @@ func sign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func printRooms(db *sql.DB) error {
 	rows, err := db.Query("SELECT * FROM ROOMS")
 	if err != nil {
@@ -196,7 +187,6 @@ func printRooms(db *sql.DB) error {
 		return err
 	}
 	defer rows.Close()
-
 	var id int
 	var name, created_by, max_player string
 	var id_game sql.NullInt64
@@ -217,17 +207,14 @@ func printRooms(db *sql.DB) error {
 		log.Printf("Error with rows: %v", err)
 		return err
 	}
-
 	return nil
 }
-
 func printUsers(db *sql.DB) {
 	rows, err := db.Query("SELECT email, password FROM USER")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
-
 	for rows.Next() {
 		var email, password string
 		err := rows.Scan(&email, &password)
@@ -236,12 +223,10 @@ func printUsers(db *sql.DB) {
 		}
 		fmt.Println("Email:", email, "Password:", password)
 	}
-
 	if err = rows.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
-
 func selectgame(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/selectgame.html")
 	if err != nil {
@@ -249,15 +234,12 @@ func selectgame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
-
 }
-
 func profile(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/profile.html")
 	if err != nil {
@@ -265,14 +247,12 @@ func profile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func createroom(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/createroom.html")
 	if err != nil {
@@ -280,14 +260,12 @@ func createroom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func create(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/create.html")
 	if err != nil {
@@ -295,14 +273,12 @@ func create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func getRooms(db *sql.DB) ([]Room, error) {
 	rows, err := db.Query("SELECT * FROM ROOMS")
 	if err != nil {
@@ -310,7 +286,6 @@ func getRooms(db *sql.DB) ([]Room, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var rooms []Room
 	for rows.Next() {
 		var room Room
@@ -325,10 +300,8 @@ func getRooms(db *sql.DB) ([]Room, error) {
 		log.Printf("Error with rows: %v", err)
 		return nil, err
 	}
-
 	return rooms, nil
 }
-
 func join(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/room.html")
 	if err != nil {
@@ -336,23 +309,19 @@ func join(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	db := database.InitDB()
 	defer db.Close()
-
 	rooms, err := getRooms(db)
 	if err != nil {
 		http.Error(w, "Failed to get rooms", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, rooms)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
-
 func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/create/createblind.html")
 	if err != nil {
@@ -360,7 +329,6 @@ func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
@@ -368,13 +336,51 @@ func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getRoomByID(db *sql.DB, id int) (Room, error) {
+	var room Room
+	row := db.QueryRow("SELECT * FROM ROOMS WHERE ID = ?", id)
+	err := row.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.GameID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Room{}, fmt.Errorf("room with ID %d not found", id)
+		}
+		return Room{}, err
+	}
+	return room, nil
+}
+
+func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil {
+		fmt.Fprintf(w, "Invalid room ID: %v", err)
+		return
+	}
+
+	room, err := getRoomByID(db, id)
+	if err != nil {
+		http.Error(w, "Failed to get room details", http.StatusInternalServerError)
+		return
+	}
+	t, err := template.ParseFiles("./templates/rooms.html")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	err = t.Execute(w, room)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	db := database.InitDB()
 	defer db.Close()
-
 	printRooms(db)
 	printUsers(db)
-
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/loghandler", loghandler)
 	http.HandleFunc("/sign", sign)
@@ -388,13 +394,15 @@ func main() {
 	http.HandleFunc("/createblind", func(w http.ResponseWriter, r *http.Request) {
 		createblind(db, w, r)
 	})
+	http.HandleFunc("/join-room", func(w http.ResponseWriter, r *http.Request) {
+		joinRoom(db, w, r)
+	})
 	http.HandleFunc("/addroom", AddRoom)
 	http.HandleFunc("/echo", groupieWebsocket.Websocket)
 	http.HandleFunc("/room", groupieWebsocket.Websocketpage)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
-
 	fmt.Println("The server is running on port :8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

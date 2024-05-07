@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room</title>
+    <!-- Inclure le code CSS et JavaScript nécessaire pour le jeu -->
+    <link rel="stylesheet" href="/static/css/game.css">
+    <script src="/static/js/game.js"></script>
+</head>
+<body>
+    <!-- Contenu de la salle avec le jeu inclus -->
+    <h1>Welcome to the Game Room</h1>
+    <div id="game-container">
+    </div>
+    <div class="chat">
+        <div class="header-band">
+            <h2 class="chat-title">Chat</h2>
+        </div>
+        <div class="content">
+            <input type="text" id="input">
+            <button onclick="send()">send message</button>
+        </div>
+        <pre id="output"></pre>
+    </div>
+
+
+</body>
+
+
+
+
+<script>
+
+    var input = document.getElementById('input')
+    var output = document.getElementById('output')
+    var socket;
+
+    function connect() {
+        var username = getCookie("pseudo");
+        if (!username) {
+            output.innerHTML += "Error: Not logged in\n";
+            return;
+        }
+        socket = new WebSocket("ws://localhost:8080/echo?pseudo=" + username);
+
+        output.classList.add("new-class")
+
+        socket.onopen = function(){
+            output.innerHTML += "Status: Connected as " + username + "\n";  
+        }
+
+        socket.onmessage = function(e){
+            var message = JSON.parse(e.data);
+            output.innerHTML += message.pseudo + ": " + message.text + "\n";  
+        }
+    }
+
+    function send(){
+        var message = {
+            pseudo: getCookie("pseudo"),
+            text: input.value
+        };
+        socket.send(JSON.stringify(message));
+        input.value = "";
+    }
+
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0;i < ca.length;i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        }
+        return null;
+    }
+
+    connect();
+</script>
+
+<style> 
+    .new-class{
+    background-color: green;
+    padding: 10px;
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    }
+    .content{
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+    }
+</style>
+</html>
