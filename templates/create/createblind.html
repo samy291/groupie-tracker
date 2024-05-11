@@ -14,13 +14,19 @@
     <form id="room-form" method="POST" action="/addroom">
         <label for="name">Room Name:</label><br>
         <input type="text" id="name" name="name"><br>
-    
-        
         <label for="maxPlayer">Max Player:</label><br>
-<input type="text" id="max_Player" name="max_player"><br>
+        <input type="text" id="max_Player" name="max_player"><br>
+        <input type="hidden" id="mode" name="mode" value="">
         <input type="submit" value="Submit">
     </form>
   
-    <script src="main.js"></script>
+    <script>
+        // Get the mode from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        
+        // Set the value of the hidden mode field
+        document.getElementById('mode').value = mode;
+    </script>
 </body>
 </html>

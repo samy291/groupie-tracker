@@ -23,6 +23,13 @@
         </div>
         <pre id="output"></pre>
     </div>
+    <button id="start-game-button">Jouer</button>
+
+<script>
+document.getElementById('start-game-button').addEventListener('click', function() {
+    fetch('/start-game', {method: 'POST'});
+});
+</script>
 
 
 </body>

@@ -72,15 +72,16 @@
                 <h2>Room</h2>
             </div>
             {{range .}}
-<div class="room" data-created-by="{{.CreatedBy}}">
-    <div>
-        <h3>{{.Name}}</h3>
-        <p>Created by: {{.CreatedBy}}</p>
-        <p>Max players: {{.MaxPlayer}}</p>
-    </div>
-    <a href="/join-room?id={{.ID}}"><button type="button">Join</button></a>
-</div>
-{{end}}
+            <div class="room" data-created-by="{{.CreatedBy}}">
+                <div>
+                    <h3>{{.Name}}</h3>
+                    <p>Created by: {{.CreatedBy}}</p>
+                    <p>Max players: {{.MaxPlayer}}</p>
+                    <p>Mode: {{.Mode}}</p> <!-- Display the mode of the room -->
+                </div>
+                <a href="/join-room?id={{.ID}}"><button type="button">Join</button></a>
+            </div>
+            {{end}}
         </div>
     </div>
     

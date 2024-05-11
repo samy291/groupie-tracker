@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS ROOMS (
     created_by INTEGER NOT NULL,
     max_player INTEGER NOT NULL,
     name TEXT NOT NULL,
+    mode TEXT NOT NULL,
     id_game INTEGER,
     FOREIGN KEY (created_by) REFERENCES USER(id),
     FOREIGN KEY (id_game) REFERENCES GAMES(id)

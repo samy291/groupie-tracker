@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	database "groupie-tracker/bdd"
+	blindtest "groupie-tracker/game"
 	"groupie-tracker/groupieWebsocket"
 	"html/template"
 	"log"
@@ -16,9 +17,10 @@ import (
 type Room struct {
 	ID        int
 	CreatedBy string
-	MaxPlayer string
+	MaxPlayer int
 	Name      string
-	GameID    sql.NullInt64
+	Mode      string
+	GameID    *int // Change this field to a pointer to int
 }
 
 func Home(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +54,19 @@ func AddRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
+	modeCookie, err := r.Cookie("mode")
+	if err != nil {
+		http.Error(w, "Mode not found", http.StatusBadRequest)
+		return
+	}
+
 	name := r.FormValue("name")
+	mode := modeCookie.Value
+
+	if mode == "" {
+		http.Error(w, "Mode is required", http.StatusBadRequest)
+		return
+	}
 
 	// Get the pseudo from the cookie
 	pseudo, err := r.Cookie("pseudo")
@@ -69,8 +83,9 @@ func AddRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer db.Close()
-	result, err := db.Exec("INSERT INTO ROOMS (name, created_by, max_player) VALUES (?, ?, ?)", name, createdBy, maxPlayer)
+	result, err := db.Exec("INSERT INTO ROOMS (name, created_by, max_player, mode) VALUES (?, ?, ?, ?)", name, createdBy, maxPlayer, mode) // Include the mode in the database insertion
 	if err != nil {
+		fmt.Println(err) // Print the error message to the console
 		http.Error(w, "Failed to insert room into database", http.StatusInternalServerError)
 		return
 	}
@@ -85,6 +100,7 @@ func AddRoom(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("A room was successfully added to the database.")
 	}
 }
+
 func Signup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -188,19 +204,19 @@ func printRooms(db *sql.DB) error {
 	}
 	defer rows.Close()
 	var id int
-	var name, created_by, max_player string
+	var created_by, max_player, name, mode string
 	var id_game sql.NullInt64
-	fmt.Println("ID | Created By | Max Players | Name | Game ID")
+	fmt.Println("ID | Created By | Max Players | Name | Mode | Game ID")
 	for rows.Next() {
-		err = rows.Scan(&id, &created_by, &max_player, &name, &id_game)
+		err = rows.Scan(&id, &created_by, &max_player, &name, &mode, &id_game)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
 			return err
 		}
 		if id_game.Valid {
-			fmt.Printf("%d | %s | %s | %s | %d\n", id, created_by, max_player, name, id_game.Int64)
+			fmt.Printf("%d | %s | %s | %s | %s | %d\n", id, created_by, max_player, name, mode, id_game.Int64)
 		} else {
-			fmt.Printf("%d | %s | %s | %s | %s\n", id, created_by, max_player, name, "NULL")
+			fmt.Printf("%d | %s | %s | %s | %s | %s\n", id, created_by, max_player, name, mode, "NULL")
 		}
 	}
 	if err = rows.Err(); err != nil {
@@ -280,7 +296,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func getRooms(db *sql.DB) ([]Room, error) {
-	rows, err := db.Query("SELECT * FROM ROOMS")
+	rows, err := db.Query("SELECT id, created_by, max_player, name, mode, id_game FROM ROOMS")
 	if err != nil {
 		log.Printf("Error executing query: %v", err)
 		return nil, err
@@ -289,7 +305,7 @@ func getRooms(db *sql.DB) ([]Room, error) {
 	var rooms []Room
 	for rows.Next() {
 		var room Room
-		err = rows.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.GameID)
+		err = rows.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.Mode, &room.GameID)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
 			return nil, err
@@ -313,6 +329,7 @@ func join(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 	rooms, err := getRooms(db)
 	if err != nil {
+		log.Printf("Error getting rooms: %v", err)
 		http.Error(w, "Failed to get rooms", http.StatusInternalServerError)
 		return
 	}
@@ -323,12 +340,27 @@ func join(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+	// Parse the form data
+	r.ParseForm()
+
+	// Get the mode from the form data
+	mode := r.Form.Get("mode")
+
+	// Set a cookie with the mode
+	http.SetCookie(w, &http.Cookie{
+		Name:  "mode",
+		Value: mode,
+	})
+
+	// Parse the HTML template
 	t, err := template.ParseFiles("./templates/create/createblind.html")
 	if err != nil {
 		fmt.Printf("Error parsing template: %v\n", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	// Execute the template
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
@@ -339,7 +371,7 @@ func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 func getRoomByID(db *sql.DB, id int) (Room, error) {
 	var room Room
 	row := db.QueryRow("SELECT * FROM ROOMS WHERE ID = ?", id)
-	err := row.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.GameID)
+	err := row.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.Mode, &room.GameID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return Room{}, fmt.Errorf("room with ID %d not found", id)
@@ -359,6 +391,7 @@ func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 	room, err := getRoomByID(db, id)
 	if err != nil {
+		fmt.Printf("Error getting room details: %v\n", err) // Print the error to the console
 		http.Error(w, "Failed to get room details", http.StatusInternalServerError)
 		return
 	}
@@ -379,6 +412,8 @@ func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 func main() {
 	db := database.InitDB()
 	defer db.Close()
+
+	printRooms(db)
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/loghandler", loghandler)
 	http.HandleFunc("/sign", sign)
@@ -394,6 +429,28 @@ func main() {
 	})
 	http.HandleFunc("/join-room", func(w http.ResponseWriter, r *http.Request) {
 		joinRoom(db, w, r)
+	})
+	http.HandleFunc("/start-game", func(w http.ResponseWriter, r *http.Request) {
+		players := []*blindtest.Player{
+			{Name: "Joueur 1"},
+			{Name: "Joueur 2"},
+		}
+		bt := blindtest.NewBlindTest(players)
+
+		// Nombre de tours à jouer
+		const roundsToPlay = 3
+
+		// Boucle principale du jeu
+		for i := 0; i < roundsToPlay; i++ {
+			// Démarrer un nouveau tour de jeu
+			err := bt.StartRound()
+			if err != nil {
+				log.Fatalf("Erreur lors du démarrage du tour de jeu: %v", err)
+			}
+
+			// Logique supplémentaire pour gérer le tour de jeu
+			// ...
+		}
 	})
 	http.HandleFunc("/addroom", AddRoom)
 	http.HandleFunc("/echo", groupieWebsocket.WebsocketHandler)

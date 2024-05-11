@@ -25,16 +25,17 @@ func InitDB() *sql.DB {
 	}
 
 	createTableQuery2 := `
-	CREATE TABLE IF NOT EXISTS ROOMS (
-		id INTEGER PRIMARY KEY,
-		created_by INTEGER NOT NULL,
-		max_player INTEGER NOT NULL,
-		name TEXT NOT NULL,
-		id_game INTEGER,
-		FOREIGN KEY (created_by) REFERENCES USER(id),
-		FOREIGN KEY (id_game) REFERENCES GAMES(id)
-	);
-	`
+CREATE TABLE IF NOT EXISTS ROOMS (
+    id INTEGER PRIMARY KEY,
+    created_by INTEGER NOT NULL,
+    max_player INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    id_game INTEGER,
+    FOREIGN KEY (created_by) REFERENCES USER(id),
+    FOREIGN KEY (id_game) REFERENCES GAMES(id)
+);
+`
 	_, err = db.Exec(createTableQuery2)
 	if err != nil {
 		log.Fatal(err)
