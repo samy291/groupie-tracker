@@ -379,8 +379,6 @@ func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 func main() {
 	db := database.InitDB()
 	defer db.Close()
-	printRooms(db)
-	printUsers(db)
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/loghandler", loghandler)
 	http.HandleFunc("/sign", sign)
@@ -398,8 +396,8 @@ func main() {
 		joinRoom(db, w, r)
 	})
 	http.HandleFunc("/addroom", AddRoom)
-	http.HandleFunc("/echo", groupieWebsocket.Websocket)
-	http.HandleFunc("/room", groupieWebsocket.Websocketpage)
+	http.HandleFunc("/echo", groupieWebsocket.WebsocketHandler)
+	http.HandleFunc("/echo2", groupieWebsocket.WebsocketHandler)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

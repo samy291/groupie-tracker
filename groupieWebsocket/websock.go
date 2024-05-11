@@ -13,24 +13,28 @@ var (
 		WriteBufferSize: 1024,
 	}
 
-	clients = make([]*websocket.Conn, 0)
+	clients = make(map[*websocket.Conn]bool)
 )
 
-func Websocket(w http.ResponseWriter, r *http.Request) {
+func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, _ := upgrader.Upgrade(w, r, nil)
 
-	clients = append(clients, conn)
+	clients[conn] = true
 
 	for {
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
+			delete(clients, conn)
 			return
 		}
 
 		fmt.Printf("%s send: %s\n", conn.RemoteAddr(), string(msg))
-		for _, client := range clients {
-			if err := client.WriteMessage(msgType, msg); err != nil {
-				return
+		for client := range clients {
+			if client != conn {
+				if err := client.WriteMessage(msgType, msg); err != nil {
+					delete(clients, client)
+					return
+				}
 			}
 		}
 	}
@@ -38,4 +42,8 @@ func Websocket(w http.ResponseWriter, r *http.Request) {
 
 func Websocketpage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/room.html")
+}
+
+func Websocketpage2(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "templates/rooms.html")
 }

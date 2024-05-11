@@ -34,7 +34,7 @@
 
     var input = document.getElementById('input')
     var output = document.getElementById('output')
-    var socket;
+    var socket1;
 
     function connect() {
         var username = getCookie("pseudo");
@@ -42,15 +42,18 @@
             output.innerHTML += "Error: Not logged in\n";
             return;
         }
-        socket = new WebSocket("ws://localhost:8080/echo?pseudo=" + username);
+        
+        socket1 = new WebSocket("ws://localhost:8080/echo2?pseudo=" + username);
 
         output.classList.add("new-class")
 
-        socket.onopen = function(){
+        socket1.onopen = function(){
             output.innerHTML += "Status: Connected as " + username + "\n";  
         }
 
-        socket.onmessage = function(e){
+   
+
+        socket1.onmessage = function(e){
             var message = JSON.parse(e.data);
             output.innerHTML += message.pseudo + ": " + message.text + "\n";  
         }
@@ -61,10 +64,10 @@
             pseudo: getCookie("pseudo"),
             text: input.value
         };
-        socket.send(JSON.stringify(message));
+        output.innerHTML += message.pseudo + ": " + message.text + "\n";  
+        socket1.send(JSON.stringify(message));
         input.value = "";
     }
-
     function getCookie(name) {
         var nameEQ = name + "=";
         var ca = document.cookie.split(';');

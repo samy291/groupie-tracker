@@ -83,7 +83,7 @@
 {{end}}
         </div>
     </div>
-    <script src="/static/js/chat.js"></script>
+    
     <script>
 
         var input = document.getElementById('input')
@@ -103,7 +103,8 @@
             socket.onopen = function(){
                 output.innerHTML += "Status: Connected as " + username + "\n";  
             }
-    
+
+            
             socket.onmessage = function(e){
                 var message = JSON.parse(e.data);
                 output.innerHTML += message.pseudo + ": " + message.text + "\n";  
@@ -130,7 +131,9 @@
             return null;
         }
     
-        connect();
+        window.onload = function() {
+            connect();
+        }
     </script>
 </body>
 </html>
