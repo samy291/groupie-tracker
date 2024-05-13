@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	database "groupie-tracker/bdd"
-	blindtest "groupie-tracker/game"
 	"groupie-tracker/groupieWebsocket"
 	"html/template"
 	"log"
@@ -141,11 +140,11 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/loghandler", http.StatusSeeOther)
 }
-func checkCredentials(db *sql.DB, email, password string) (bool, string, error) {
+func checkCredentials(db *sql.DB, identifier, password string) (bool, string, error) {
 	var id int
 	var pseudo string
 	var storedPassword string
-	row := db.QueryRow("SELECT id, pseudo, password FROM USER WHERE email = ?", email)
+	row := db.QueryRow("SELECT id, pseudo, password FROM USER WHERE email = ? OR pseudo = ?", identifier, identifier)
 	err := row.Scan(&id, &pseudo, &storedPassword)
 	if err == sql.ErrNoRows {
 		return false, "", nil
@@ -162,11 +161,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-	email := r.FormValue("email")
+	identifier := r.FormValue("identifier")
 	password := r.FormValue("password")
 	db := database.InitDB()
 	defer db.Close()
-	isAuthorized, username, err := checkCredentials(db, email, password)
+	isAuthorized, username, err := checkCredentials(db, identifier, password)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -181,7 +180,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "templates/selectgame.html")
 	} else {
 		http.ServeFile(w, r, "templates/login.html")
-		fmt.Fprintf(w, "Invalid email or password.")
+		fmt.Fprintf(w, "Invalid identifier or password.")
 	}
 }
 func sign(w http.ResponseWriter, r *http.Request) {
@@ -426,31 +425,13 @@ func main() {
 	http.HandleFunc("/join-room", func(w http.ResponseWriter, r *http.Request) {
 		joinRoom(db, w, r)
 	})
-	http.HandleFunc("/start-game", func(w http.ResponseWriter, r *http.Request) {
-		players := []*blindtest.Player{
-			{Name: "Joueur 1"},
-			{Name: "Joueur 2"},
-		}
-		bt := blindtest.NewBlindTest(players)
-
-		// Nombre de tours à jouer
-		const roundsToPlay = 3
-
-		// Boucle principale du jeu
-		for i := 0; i < roundsToPlay; i++ {
-			// Démarrer un nouveau tour de jeu
-			err := bt.StartRound()
-			if err != nil {
-				log.Fatalf("Erreur lors du démarrage du tour de jeu: %v", err)
-			}
-
-			// Logique supplémentaire pour gérer le tour de jeu
-			// ...
-		}
-	})
 	http.HandleFunc("/addroom", AddRoom)
 	http.HandleFunc("/echo", groupieWebsocket.WebsocketHandler)
 	http.HandleFunc("/echo2", groupieWebsocket.WebsocketHandler)
+	// http.HandleFunc("/get-new-song", func(w http.ResponseWriter, r *http.Request) {
+	// 	song := getNewSong()
+	// 	json.NewEncoder(w).Encode(song)
+	// })
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

@@ -3,10 +3,6 @@ body {
     padding: 0;
 }
 
-label[for="password"], label[for="email"] {
-    color: rgb(255, 255, 255);
-}
-
 .input-button-container {
     display: flex;
     align-items: center;
@@ -62,7 +58,7 @@ label[for="password"], label[for="email"] {
     margin-bottom: 8px;
 }
 
-.container input[type="email"], .container input[type="password"] {
+.container input[type="email"], .container input[type="password"], .container input[type="text"] {
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 16px;
@@ -111,4 +107,8 @@ label[for="password"], label[for="email"] {
 
 .container button[type="submit"]:hover {
     background-color: #0056b3;
+}
+
+.logt{
+    color: white;
 }

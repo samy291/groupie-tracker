@@ -23,7 +23,17 @@
         </div>
         <pre id="output"></pre>
     </div>
-    <button id="start-game-button">Jouer</button>
+    <h1>Blind Test</h1>
+    <div id="song-info">
+        <h2 id="song-title"></h2>
+        <p id="artist"></p>
+        <audio id="audio" controls autoplay>
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    <div>
+        <input type="text"> <button>Submit</button> 
+    </div>
 
 <script>
 document.getElementById('start-game-button').addEventListener('click', function() {
@@ -87,6 +97,16 @@ document.getElementById('start-game-button').addEventListener('click', function(
     }
 
     connect();
+
+    document.getElementById('new-song-btn').addEventListener('click', function() {
+        fetch('/get-new-song', {method: 'GET'})
+        .then(response => response.json())
+        .then(song => {
+            document.getElementById('song-title').textContent = song.title;
+            document.getElementById('artist').textContent = song.artist;
+            document.getElementById('audio').src = song.audioUrl;
+        });
+    });
 </script>
 
 <style> 

@@ -86,6 +86,15 @@ func (bt *BlindTest) StartRound() error {
 	return nil
 }
 
+func getNewSong() Song {
+	// Replace this with your own logic to get a new song
+	return Song{
+		Title:    "New Song",
+		Artist:   "New Artist",
+		AudioURL: "/path/to/new/song.mp3",
+	}
+}
+
 // // loadPlaylistFromSpotify charge la playlist depuis Spotify
 //
 //	func (bt *BlindTest) loadPlaylistFromSpotify() error {
