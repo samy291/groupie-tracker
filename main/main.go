@@ -442,8 +442,6 @@ func main() {
 	http.HandleFunc("/addroom", AddRoom)
 	http.HandleFunc("/echo", groupieWebsocket.WebsocketHandler)
 	http.HandleFunc("/echo2", groupieWebsocket.WebsocketHandler)
-	http.HandleFunc("/get-new-song", getNewSongHand)
-
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 	fmt.Println("The server is running on port :8080")
