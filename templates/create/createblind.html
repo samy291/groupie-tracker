@@ -13,9 +13,9 @@
     </div>
     <form id="room-form" method="POST" action="/addroom">
         <label for="name">Room Name:</label><br>
-        <input type="text" id="name" name="name"><br>
+        <input type="text" id="name" name="name" required><br> 
         <label for="maxPlayer">Max Player:</label><br>
-        <input type="text" id="max_Player" name="max_player"><br>
+        <input type="number" id="max_Player" name="max_player" min="1" required><br> 
         <input type="hidden" id="mode" name="mode" value="">
         <input type="submit" value="Submit">
     </form>

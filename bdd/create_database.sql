@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS ROOMS (
     id INTEGER PRIMARY KEY,
     created_by INTEGER NOT NULL,
     max_player INTEGER NOT NULL,
+    current_player_count INTEGER DEFAULT 0,
     name TEXT NOT NULL,
     mode TEXT NOT NULL,
     id_game INTEGER,

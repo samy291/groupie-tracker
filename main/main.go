@@ -15,12 +15,12 @@ import (
 )
 
 type Room struct {
-	ID        int
-	CreatedBy string
-	MaxPlayer int
-	Name      string
-	Mode      string
-	GameID    *int // Change this field to a pointer to int
+	ID        *int
+	CreatedBy *string
+	MaxPlayer *int
+	Name      *string
+	Mode      *string
+	GameID    *int
 }
 
 func Home(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +97,7 @@ func AddRoom(w http.ResponseWriter, r *http.Request) {
 	if rowsAffected == 0 {
 		fmt.Println("No room was added to the database.")
 	} else {
+		http.ServeFile(w, r, "templates/selectgame.html")
 		fmt.Println("A room was successfully added to the database.")
 	}
 }
@@ -197,27 +198,24 @@ func sign(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func printRooms(db *sql.DB) error {
-	rows, err := db.Query("SELECT * FROM ROOMS")
+	var id int
+	var created_by, max_player, name, mode string
+
+	rows, err := db.Query("SELECT id, created_by, max_player, name, mode FROM rooms")
 	if err != nil {
 		log.Printf("Error executing query: %v", err)
 		return err
 	}
 	defer rows.Close()
-	var id int
-	var created_by, max_player, name, mode string
-	var id_game sql.NullInt64
-	fmt.Println("ID | Created By | Max Players | Name | Mode | Game ID")
+
+	fmt.Println("ID | Created By | Max Players | Name | Mode")
 	for rows.Next() {
-		err = rows.Scan(&id, &created_by, &max_player, &name, &mode, &id_game)
+		err = rows.Scan(&id, &created_by, &max_player, &name, &mode)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
 			return err
 		}
-		if id_game.Valid {
-			fmt.Printf("%d | %s | %s | %s | %s | %d\n", id, created_by, max_player, name, mode, id_game.Int64)
-		} else {
-			fmt.Printf("%d | %s | %s | %s | %s | %s\n", id, created_by, max_player, name, mode, "NULL")
-		}
+		fmt.Printf("%d | %s | %s | %s | %s\n", id, created_by, max_player, name, mode)
 	}
 	if err = rows.Err(); err != nil {
 		log.Printf("Error with rows: %v", err)
@@ -370,8 +368,8 @@ func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 func getRoomByID(db *sql.DB, id int) (Room, error) {
 	var room Room
-	row := db.QueryRow("SELECT * FROM ROOMS WHERE ID = ?", id)
-	err := row.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.Mode, &room.GameID)
+	row := db.QueryRow("SELECT id, created_by, max_player, name, mode FROM ROOMS WHERE ID = ?", id)
+	err := row.Scan(&room.ID, &room.CreatedBy, &room.MaxPlayer, &room.Name, &room.Mode)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return Room{}, fmt.Errorf("room with ID %d not found", id)
@@ -382,13 +380,11 @@ func getRoomByID(db *sql.DB, id int) (Room, error) {
 }
 
 func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil {
 		fmt.Fprintf(w, "Invalid room ID: %v", err)
 		return
 	}
-
 	room, err := getRoomByID(db, id)
 	if err != nil {
 		fmt.Printf("Error getting room details: %v\n", err) // Print the error to the console
