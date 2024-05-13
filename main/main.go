@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -110,6 +111,25 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
+
+	// Check if password meets CNIL requirements
+	if len(password) < 12 {
+		http.Error(w, "Password must be at least 12 characters long", http.StatusBadRequest)
+		return
+	}
+	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
+		http.Error(w, "Password must contain at least one digit", http.StatusBadRequest)
+		return
+	}
+	if !regexp.MustCompile(`[a-z]`).MatchString(password) || !regexp.MustCompile(`[A-Z]`).MatchString(password) {
+		http.Error(w, "Password must contain at least one lowercase and one uppercase letter", http.StatusBadRequest)
+		return
+	}
+	if !regexp.MustCompile(`[^a-zA-Z0-9\s]`).MatchString(password) {
+		http.Error(w, "Password must contain at least one special character", http.StatusBadRequest)
+		return
+	}
+
 	if password != confirmPassword {
 		http.Error(w, "Passwords do not match", http.StatusBadRequest)
 		return
