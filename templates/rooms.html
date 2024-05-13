@@ -29,97 +29,96 @@
         <audio id="audio" controls autoplay>
             Your browser does not support the audio element.
         </audio>
+        <button id="play-btn">Play</button>
     </div>
     <div>
         <input type="text"> <button>Submit</button> 
     </div>
-
-<script>
-document.getElementById('start-game-button').addEventListener('click', function() {
-    fetch('/start-game', {method: 'POST'});
-});
-</script>
-
-
-</body>
-
-
-
-
-<script>
-
-    var input = document.getElementById('input')
-    var output = document.getElementById('output')
-    var socket1;
-
-    function connect() {
-        var username = getCookie("pseudo");
-        if (!username) {
-            output.innerHTML += "Error: Not logged in\n";
-            return;
+    <script>
+        function getNewSong() {
+            fetch('/get-new-song', {method: 'GET'})
+            .then(response => response.json())
+            .then(song => {
+                document.getElementById('song-title').textContent = song.title;
+                document.getElementById('artist').textContent = song.artist;
+                document.getElementById('audio').src = song.audioUrl;
+            });
         }
-        
-        socket1 = new WebSocket("ws://localhost:8080/echo2?pseudo=" + username);
+    
+        // Get a new song immediately on page load
+        getNewSong();
+    
+        // Then get a new song every 30 seconds
+        setInterval(getNewSong, 30000);
+    </script>
 
-        output.classList.add("new-class")
+    <script>
+        var input = document.getElementById('input')
+        var output = document.getElementById('output')
+        var socket1;
 
-        socket1.onopen = function(){
-            output.innerHTML += "Status: Connected as " + username + "\n";  
+        function connect() {
+            var username = getCookie("pseudo");
+            if (!username) {
+                output.innerHTML += "Error: Not logged in\n";
+                return;
+            }
+            
+            socket1 = new WebSocket("ws://localhost:8080/echo2?pseudo=" + username);
+
+            output.classList.add("new-class")
+
+            socket1.onopen = function(){
+                output.innerHTML += "Status: Connected as " + username + "\n";  
+            }
+
+            socket1.onmessage = function(e){
+                var message = JSON.parse(e.data);
+                output.innerHTML += message.pseudo + ": " + message.text + "\n";  
+            }
         }
 
-   
-
-        socket1.onmessage = function(e){
-            var message = JSON.parse(e.data);
+        function send(){
+            var message = {
+                pseudo: getCookie("pseudo"),
+                text: input.value
+            };
             output.innerHTML += message.pseudo + ": " + message.text + "\n";  
+            socket1.send(JSON.stringify(message));
+            input.value = "";
         }
-    }
-
-    function send(){
-        var message = {
-            pseudo: getCookie("pseudo"),
-            text: input.value
-        };
-        output.innerHTML += message.pseudo + ": " + message.text + "\n";  
-        socket1.send(JSON.stringify(message));
-        input.value = "";
-    }
-    function getCookie(name) {
-        var nameEQ = name + "=";
-        var ca = document.cookie.split(';');
-        for(var i=0;i < ca.length;i++) {
-            var c = ca[i];
-            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
         }
-        return null;
-    }
 
-    connect();
+        connect();
+    </script>
 
-    document.getElementById('new-song-btn').addEventListener('click', function() {
-        fetch('/get-new-song', {method: 'GET'})
-        .then(response => response.json())
-        .then(song => {
-            document.getElementById('song-title').textContent = song.title;
-            document.getElementById('artist').textContent = song.artist;
-            document.getElementById('audio').src = song.audioUrl;
+    <script>
+        document.getElementById('play-btn').addEventListener('click', function() {
+            document.getElementById('audio').play();
         });
-    });
-</script>
+    </script>
 
-<style> 
-    .new-class{
-    background-color: green;
-    padding: 10px;
-    color: white;
-    font-size: 20px;
-    text-align: center;
-    }
-    .content{
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-    }
-</style>
+    <style> 
+        .new-class{
+        background-color: green;
+        padding: 10px;
+        color: white;
+        font-size: 20px;
+        text-align: center;
+        }
+        .content{
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+        }
+    </style>
 </html>

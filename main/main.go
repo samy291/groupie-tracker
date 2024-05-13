@@ -442,10 +442,7 @@ func main() {
 	http.HandleFunc("/addroom", AddRoom)
 	http.HandleFunc("/echo", groupieWebsocket.WebsocketHandler)
 	http.HandleFunc("/echo2", groupieWebsocket.WebsocketHandler)
-	// http.HandleFunc("/get-new-song", func(w http.ResponseWriter, r *http.Request) {
-	// 	song := getNewSong()
-	// 	json.NewEncoder(w).Encode(song)
-	// })
+	http.HandleFunc("/get-new-song", getNewSongHand)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

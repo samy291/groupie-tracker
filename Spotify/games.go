@@ -1,4 +1,4 @@
-package main
+package Spotify
 
 import (
 	"encoding/base64"
@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -22,34 +21,60 @@ var (
 	ClientIDAccess     = "0usQQiAb3EUV0A3cogy-FzgcgX5NcU04lw8gFGgL-AkJd_VemfO9e9fMYjrzlvFA"
 )
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
+func GetTrackURL(title string, artist string, accessToken string) (string, error) {
+	// Create a GET request to the Spotify Search API
+	apiURL := fmt.Sprintf("https://api.spotify.com/v1/search?q=track:%s%%20artist:%s&type=track&limit=1", url.QueryEscape(title), url.QueryEscape(artist))
 
-	// Générer le jeton d'accès Spotify
-	accessToken, err := generateAccessToken()
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Create a GET request
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		fmt.Println("Erreur lors de la génération du jeton d'accès:", err)
-		return
+		return "", err
 	}
 
-	// Utiliser le jeton d'accès pour récupérer une chanson aléatoire de la playlist
-	randomSong, err := getRandomSongFromPlaylist(accessToken)
+	// Add the Authorization header with the access token for Spotify
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// Send the request and get a response
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Erreur lors de la récupération de la chanson aléatoire de la playlist:", err)
-		return
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Decode the JSON response
+	var data map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return "", err
 	}
 
-	fmt.Println("Chanson aléatoire de la playlist récupérée :", randomSong)
-
-	// Récupérer les paroles de la chanson aléatoire
-	err = getLyrics(randomSong, ClientIDAccess)
-	if err != nil {
-		fmt.Println("Erreur lors de la récupération des paroles de la chanson:", err)
-		return
+	// Extract the "tracks" object from the JSON
+	tracks, ok := data["tracks"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("unexpected response format from Spotify API")
 	}
+
+	// Extract the "items" array from the tracks
+	items, ok := tracks["items"].([]interface{})
+	if !ok || len(items) == 0 {
+		return "", errors.New("no track found for the song")
+	}
+
+	// Extract the first item
+	item := items[0].(map[string]interface{})
+
+	// Extract the track URL
+	trackURL, ok := item["preview_url"].(string)
+	if !ok {
+		return "", errors.New("unexpected response format from Spotify API")
+	}
+
+	return trackURL, nil
 }
 
-func generateAccessToken() (string, error) {
+func GenerateAccessToken() (string, error) {
 	// Encodez le client ID et le client secret pour obtenir le header Authorization
 	authHeader := base64.StdEncoding.EncodeToString([]byte(ClientID + ":" + ClientSecret))
 
@@ -84,7 +109,7 @@ func generateAccessToken() (string, error) {
 	return tokenResp.AccessToken, nil
 }
 
-func getRandomSongFromPlaylist(accessToken string) (string, error) {
+func GetRandomSongFromPlaylist(accessToken string) (string, error) {
 	playlistID := "4OZ02mQrmS1LU8bkG09vq7" // ID de votre playlist
 
 	// Récupérer la liste de toutes les chansons dans la playlist
@@ -98,7 +123,7 @@ func getRandomSongFromPlaylist(accessToken string) (string, error) {
 	return allSongs[randomIndex], nil
 }
 
-func getAllSongsFromPlaylist(accessToken, playlistID string) ([]string, error) {
+func GetAllSongsFromPlaylist(accessToken, playlistID string) ([]string, error) {
 	// Créer la requête GET pour récupérer les chansons de la playlist
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID), nil)
 	if err != nil {
@@ -150,7 +175,7 @@ func getAllSongsFromPlaylist(accessToken, playlistID string) ([]string, error) {
 	return songs, nil
 }
 
-func checkLyricsAvailability(song, artist string, accessToken string) (bool, error) {
+func CheckLyricsAvailability(song, artist string, accessToken string) (bool, error) {
 	// Créer une requête GET à l'API Genius pour rechercher les paroles de la chanson
 	apiUrl := fmt.Sprintf("https://api.genius.com/search?q=%s %s", url.QueryEscape(song), url.QueryEscape(artist))
 
@@ -195,7 +220,7 @@ func checkLyricsAvailability(song, artist string, accessToken string) (bool, err
 	return true, nil
 }
 
-func getLyrics(song string, accessToken string) error {
+func GetLyrics(song string, accessToken string) error {
 	// Créer une requête GET à l'API Genius pour rechercher les paroles de la chanson
 	apiURL := fmt.Sprintf("https://api.genius.com/search?q=%s", url.QueryEscape(song))
 
