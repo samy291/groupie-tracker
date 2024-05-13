@@ -112,7 +112,6 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
 
-	// Check if password meets CNIL requirements
 	if len(password) < 12 {
 		http.Error(w, "Password must be at least 12 characters long", http.StatusBadRequest)
 		return
@@ -141,7 +140,6 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	// Check if the username or email already exists
 	var exists int
 	err = db.QueryRow("SELECT count(*) FROM USER WHERE pseudo = ? OR email = ?", pseudo, email).Scan(&exists)
 	if err != nil {
@@ -357,19 +355,16 @@ func join(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-	// Parse the form data
+
 	r.ParseForm()
 
-	// Get the mode from the form data
 	mode := r.Form.Get("mode")
 
-	// Set a cookie with the mode
 	http.SetCookie(w, &http.Cookie{
 		Name:  "mode",
 		Value: mode,
 	})
 
-	// Parse the HTML template
 	t, err := template.ParseFiles("./templates/create/createblind.html")
 	if err != nil {
 		fmt.Printf("Error parsing template: %v\n", err)
@@ -377,7 +372,6 @@ func createblind(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the template
 	err = t.Execute(w, nil)
 	if err != nil {
 		fmt.Printf("Error executing template: %v\n", err)
@@ -406,7 +400,7 @@ func joinRoom(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 	room, err := getRoomByID(db, id)
 	if err != nil {
-		fmt.Printf("Error getting room details: %v\n", err) // Print the error to the console
+		fmt.Printf("Error getting room details: %v\n", err)
 		http.Error(w, "Failed to get room details", http.StatusInternalServerError)
 		return
 	}
