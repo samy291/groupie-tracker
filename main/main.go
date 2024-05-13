@@ -422,7 +422,6 @@ func main() {
 	db := database.InitDB()
 	defer db.Close()
 
-	printRooms(db)
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/loghandler", loghandler)
 	http.HandleFunc("/sign", sign)
